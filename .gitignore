@@ -5,6 +5,8 @@
 # Ignore cache files
 cache.csv
 
+#Ignore log files
+rechner_log.csv
 # Python cache and environment files
 __pycache__/
 *.pyc
