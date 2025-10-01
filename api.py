@@ -104,7 +104,7 @@ async def convert(from_currency: str, to_currency: str, amount: float):
         response = await client.get(BASE_URL, params=params)
 
     if response.status_code != 200:
-        raise HTTPException(status_code=500, detail=f"API-Anfrage fehlgeschlagen: {response.status_code}")
+        raise HTTPException(status_code=response.status_code, detail=f"API-Anfrage fehlgeschlagen: {response.status_code}")#The error 
 
     data = response.json()
     if not data.get("success", False):
