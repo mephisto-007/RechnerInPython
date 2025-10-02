@@ -3,7 +3,7 @@ import time
 import csv 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 
 # .env laden
 load_dotenv()
@@ -84,8 +84,18 @@ load_cache()
 # API-Endpunkt
 # -----------------------------
 @app.get("/convert")
-async def convert(from_currency: str, to_currency: str, amount: float):
-    cache_key = get_cache_key(from_currency, to_currency, amount)
+async def convert(
+    from_currency: str,
+    to_currency: str,
+    amount: str = Query(...)
+):
+    # Allow comma as decimal separator
+    try:
+        amount_float = float(amount.replace(",", "."))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ungültiger Betrag. Bitte Zahl mit Punkt oder Komma eingeben.")
+
+    cache_key = get_cache_key(from_currency, to_currency, amount_float)
 
     # 1. Cache prüfen
     cached = get_cache(cache_key)
@@ -97,7 +107,7 @@ async def convert(from_currency: str, to_currency: str, amount: float):
         "access_key": API_KEY,
         "from": from_currency.upper(),
         "to": to_currency.upper(),
-        "amount": amount
+        "amount": amount_float
     }
 
     async with httpx.AsyncClient() as client:
@@ -111,12 +121,21 @@ async def convert(from_currency: str, to_currency: str, amount: float):
         err = data.get("error", {})
         raise HTTPException(status_code=400, detail=f"API-Fehler: {err}")
 
+    # Extract rate safely
+    rate = None
+    if "info" in data and isinstance(data["info"], dict):
+        rate = data["info"].get("rate")
+    elif "rate" in data:
+        rate = data.get("rate")
+
     result = {
         "from": from_currency.upper(),
         "to": to_currency.upper(),
-        "amount": amount,
+        "amount": amount_float,
         "result": data.get("result"),
-        "info": data.get("info")  # enthält rate
+        "info": {
+            "rate": rate
+        }
     }
 
     # 3. Cache speichern
